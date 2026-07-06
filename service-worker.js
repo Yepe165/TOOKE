@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nota-sawit-v10';
+const CACHE_NAME = 'nota-sawit-v14';
 const ASSETS = [
   './index.html',
   './manifest.json',
