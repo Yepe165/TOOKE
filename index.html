@@ -692,7 +692,7 @@ async function loadAndRenderMonth(key){
 function renderHistory(){
   const list = currentMonthRecords;
   if(list.length === 0){
-    histListEl.innerHTML = '<div class="empty">Belum ada transaksi bulan ini</div>';
+    histListEl.innerHTML = '<div class="empty">Belum ada transaksi hari ini</div>';
     monthSummaryEl.innerHTML = '';
     return;
   }
@@ -737,16 +737,16 @@ async function deleteTransaction(idx){
 async function deleteMonthHistory(){
   const key = monthSelectEl.value;
   if(currentMonthRecords.length === 0){
-    showStatus('Tidak ada riwayat untuk dihapus di bulan ini.', 'err');
+    showStatus('Tidak ada riwayat untuk dihapus di hari ini.', 'err');
     return;
   }
   const label = monthLabel(key);
-  if(!confirm('Hapus SEMUA riwayat bulan ' + label + ' (' + currentMonthRecords.length + ' transaksi)? Tindakan ini tidak bisa dibatalkan.')) return;
+  if(!confirm('Hapus SEMUA riwayat hari ' + label + ' (' + currentMonthRecords.length + ' transaksi)? Tindakan ini tidak bisa dibatalkan.')) return;
   try{
     await storageDelete(key);
     await populateMonthSelect();
     await loadAndRenderMonth(monthSelectEl.value);
-    showStatus('Riwayat bulan ' + label + ' sudah dihapus.', 'ok');
+    showStatus('Riwayat harian ' + label + ' sudah dihapus.', 'ok');
   }catch(e){
     showStatus('Gagal menghapus riwayat: ' + e.message, 'err');
   }
@@ -802,7 +802,7 @@ $('btnSimpan').addEventListener('click', async () => {
     }
     await populateMonthSelect();
     monthSelectEl.value = key;
-    showStatus('Transaksi disimpan ke riwayat bulan ' + monthLabel(key) + '.', 'ok');
+    showStatus('Transaksi disimpan ke riwayat hari ini ' + monthLabel(key) + '.', 'ok');
   }catch(e){
     showStatus('Gagal menyimpan riwayat: ' + e.message, 'err');
   }
