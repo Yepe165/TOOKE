@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Tookee — Nota Timbangan Sawit</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1F3D2B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tookee">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --forest:#1F3D2B;
+    --forest-2:#2A5138;
+    --gold:#E0A526;
+    --gold-dark:#B5810F;
+    --fruit:#C0532D;
+    --paper:#FAF6EC;
+    --ink:#2A2620;
+    --ink-soft:#6b6152;
+    --line:#e4dcc8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--forest);
+    background-image: radial-gradient(circle at 15% 10%, rgba(224,165,38,0.10), transparent 45%),
+                       radial-gradient(circle at 85% 90%, rgba(192,83,45,0.12), transparent 45%);
+    min-height:100vh;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color:var(--ink);
+    padding:20px 14px 60px;
+  }
+  .app{ max-width:480px; margin:0 auto; }
+
+  header{ text-align:center; margin-bottom:20px; }
+  header .crop{
+    font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--gold); font-weight:600; margin-bottom:6px;
+  }
+  #tokeName{
+    font-family: Georgia, "Iowan Old Style", serif;
+    font-size:26px; font-weight:700; color:#fff;
+    background:transparent; border:none; text-align:center; width:100%;
+    outline:none; border-bottom:1px dashed transparent; padding:4px 0;
+  }
+  #tokeName:focus{ border-bottom:1px dashed var(--gold); }
+  header .hint{ color:#cfd8cf; font-size:12px; margin-top:2px;}
+
+  .tabbar{
+    display:flex; gap:8px; margin-bottom:16px;
+    background:rgba(255,255,255,0.08); border-radius:12px; padding:4px;
+  }
+  .tab-btn{
+    flex:1; background:transparent; border:none; color:#cfd8cf;
+    font-weight:700; font-size:13.5px; padding:11px 8px; border-radius:9px;
+  }
+  .tab-btn.active{ background:var(--gold); color:var(--forest); }
+
+  .card{
+    background:var(--paper);
+    border-radius:14px;
+    padding:18px;
+    margin-bottom:16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  }
+  .card h2{
+    font-size:12px; text-transform:uppercase; letter-spacing:.12em;
+    color:var(--forest-2); margin:0 0 14px; font-weight:700;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card h2::before{ content:""; width:8px; height:8px; border-radius:50%; background:var(--gold); display:inline-block;}
+
+  label{ display:block; font-size:12.5px; color:var(--ink-soft); margin:12px 0 5px; font-weight:600;}
+  label:first-of-type{ margin-top:0; }
+  input[type=text], input[type=number]{
+    width:100%; padding:12px 12px; font-size:16px; border-radius:9px;
+    border:1.5px solid var(--line); background:#fff; color:var(--ink);
+    outline:none; font-family:inherit;
+  }
+  input:focus{ border-color:var(--gold); }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+
+  .session-hint{ font-size:11.5px; color:var(--ink-soft); margin:-2px 0 8px; line-height:1.4; }
+  #sessionList{ max-height:340px; overflow-y:auto; padding-right:2px; }
+  #histList{ max-height:380px; overflow-y:auto; padding-right:2px; }
+  .session-row{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .session-row .session-label{
+    font-size:12px; font-weight:700; color:var(--forest-2);
+    width:78px; flex-shrink:0;
+  }
+  .session-row input{ flex:1; }
+  .session-remove{
+    flex-shrink:0; width:34px; height:34px; padding:0;
+    border-radius:8px; background:#fff; border:1.5px solid var(--line);
+    color:var(--fruit); font-weight:700; font-size:15px; line-height:1;
+  }
+  .btn-add-session{
+    background:#fff; color:var(--forest-2); border:1.5px dashed var(--gold-dark);
+    width:100%; padding:10px; font-size:13.5px; margin-top:2px;
+  }
+  .readonly-box{
+    padding:12px 12px; font-size:16px; border-radius:9px; font-weight:700;
+    border:1.5px solid var(--line); background:#f2efe4; color:var(--forest-2);
+  }
+
+  .total-box{
+    margin-top:16px; padding:14px 16px; border-radius:10px;
+    background:var(--forest); color:#fff; display:flex; justify-content:space-between; align-items:center;
+  }
+  .total-box .lbl{ font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:#cfe0cf;}
+  .total-box .val{ font-size:22px; font-weight:800; color:var(--gold); font-variant-numeric:tabular-nums;}
+
+  button{
+    font-family:inherit; cursor:pointer; border:none; border-radius:9px;
+    font-weight:700; font-size:14.5px; padding:13px 16px;
+    transition:transform .08s ease, opacity .15s ease;
+  }
+  button:active{ transform:scale(0.97); }
+  button:disabled{ opacity:.5; cursor:not-allowed; transform:none; }
+  .btn-primary{ background:var(--gold); color:var(--forest); width:100%; margin-top:14px; }
+  .btn-secondary{ background:#fff; color:var(--forest-2); border:1.5px solid var(--line); width:100%; margin-top:10px;}
+  .btn-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;}
+  .btn-ghost{ background:transparent; color:var(--fruit); border:1.5px solid var(--fruit); }
+
+  /* Receipt preview styled like thermal paper */
+  .receipt-wrap{ position:relative; padding-bottom:14px;}
+  .receipt{
+    background:#fffefb; color:#1a1a1a; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size:12.5px; line-height:1.55; padding:16px 14px 20px;
+    border-radius:2px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.15) inset, 0 3px 10px rgba(0,0,0,0.15);
+  }
+  .receipt-zigzag{
+    height:10px;
+    background:
+      linear-gradient(135deg, #fffefb 25%, transparent 25%) 0 0,
+      linear-gradient(225deg, #fffefb 25%, transparent 25%) 0 0;
+    background-size:10px 10px;
+    background-repeat:repeat-x;
+  }
+  .rline{ display:flex; justify-content:space-between; gap:8px; white-space:pre; }
+  .rcenter{ text-align:center; }
+  .rbold{ font-weight:700; }
+  .rdash{ border-top:1px dashed #999; margin:6px 0; }
+  .rbig{ font-size:15px; font-weight:800; }
+
+  .status{
+    font-size:12px; margin-top:10px; padding:8px 10px; border-radius:8px;
+    background:#eef2ea; color:var(--forest-2); display:none;
+  }
+  .status.show{ display:block; }
+  .status.err{ background:#fbe9e4; color:var(--fruit); }
+  .status.ok{ background:#e7f3e7; color:#2b5c2b; }
+
+  .hist-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 4px; border-bottom:1px solid var(--line); font-size:13.5px;
+  }
+  .hist-item:last-child{ border-bottom:none; }
+  .hist-item .who{ font-weight:700; color:var(--forest-2);}
+  .hist-item .meta{ font-size:11.5px; color:var(--ink-soft); }
+  .hist-actions{ display:flex; gap:6px; }
+  .hist-actions button{ padding:6px 9px; font-size:11.5px; }
+  .hist-del{
+    background:#fff; border:1.5px solid var(--fruit); color:var(--fruit);
+    width:34px; padding:6px 0 !important; font-size:14px !important;
+  }
+  .btn-danger{
+    background:#fff; color:var(--fruit); border:1.5px solid var(--fruit);
+    width:100%; padding:12px; font-size:13.5px; margin-top:10px;
+  }
+  .empty{ color:var(--ink-soft); font-size:13px; text-align:center; padding:14px 0;}
+
+  #monthSelect, #dailyDate{
+    width:100%; padding:11px 12px; font-size:14.5px; border-radius:9px;
+    border:1.5px solid var(--line); background:#fff; color:var(--ink);
+    font-family:inherit; font-weight:600; margin-bottom:10px;
+  }
+  .subtabbar{
+    display:flex; gap:8px; margin-bottom:14px;
+    background:rgba(255,255,255,0.08); border-radius:12px; padding:4px;
+  }
+  .subtab-btn{
+    flex:1; background:transparent; border:none; color:#cfd8cf;
+    font-weight:700; font-size:13px; padding:10px 8px; border-radius:9px;
+  }
+  .subtab-btn.active{ background:var(--gold); color:var(--forest); }
+  .btn-wa{ background:#25D366; color:#fff; border:none; width:100%; padding:12px; font-size:13.5px; margin-top:10px; }
+  .month-summary{
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px;
+  }
+  .month-summary .stat{
+    background:#fff; border:1.5px solid var(--line); border-radius:9px;
+    padding:9px 6px; text-align:center;
+  }
+  .month-summary .stat .n{ font-size:14px; font-weight:800; color:var(--forest-2); display:block;}
+  .month-summary .stat .l{ font-size:10px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em;}
+
+  footer{ text-align:center; color:#cfd8cf; font-size:11.5px; margin-top:22px; line-height:1.6; }
+  footer a{ color:var(--gold); }
+
+  #lockScreen{
+    position:fixed; inset:0; z-index:1000;
+    background:var(--forest);
+    background-image: radial-gradient(circle at 15% 10%, rgba(224,165,38,0.12), transparent 45%),
+                       radial-gradient(circle at 85% 90%, rgba(192,83,45,0.14), transparent 45%);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .lock-box{
+    background:var(--paper); border-radius:16px; padding:32px 26px;
+    max-width:340px; width:100%; text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,0.35);
+  }
+  .lock-crop{
+    font-family: Georgia, "Iowan Old Style", serif; font-weight:700;
+    font-size:24px; color:var(--forest); margin-bottom:6px;
+  }
+  .lock-title{ font-size:14px; font-weight:700; color:var(--forest-2); text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px;}
+  .lock-sub{ font-size:13px; color:var(--ink-soft); margin:0 0 18px; }
+  #lockInput{
+    width:100%; padding:13px 14px; font-size:16px; border-radius:9px;
+    border:1.5px solid var(--line); background:#fff; color:var(--ink);
+    outline:none; text-align:center; letter-spacing:.05em; margin-bottom:12px;
+  }
+  #lockInput:focus{ border-color:var(--gold); }
+  #lockBtn{
+    background:var(--gold); color:var(--forest); width:100%;
+    padding:13px 16px; font-size:14.5px; font-weight:700; border:none; border-radius:9px; cursor:pointer;
+  }
+  .lock-error{ color:var(--fruit); font-size:12.5px; margin-top:10px; min-height:16px; font-weight:600; }
+  .lock-contact{
+    margin-top:20px; padding-top:16px; border-top:1px dashed var(--line);
+  }
+  .lock-contact-text{ font-size:12.5px; color:var(--ink-soft); margin-bottom:10px; }
+  .lock-wa-btn{
+    display:block; text-decoration:none; background:#25D366; color:#fff;
+    font-weight:700; font-size:14px; padding:12px 16px; border-radius:9px;
+  }
+</style>
+</head>
+<body>
+
+<div id="lockScreen">
+  <div class="lock-box">
+    <div class="lock-crop">Tookee</div>
+    <div class="lock-title">Halaman Terkunci</div>
+    <p class="lock-sub">Masukkan password untuk masuk</p>
+    <input type="password" id="lockInput" placeholder="Password" autocomplete="off">
+    <button type="button" id="lockBtn">Masuk</button>
+    <div class="lock-error" id="lockError"></div>
+    <div class="lock-contact">
+      <div class="lock-contact-text">Belum punya password?</div>
+      <a class="lock-wa-btn" href="https://wa.me/6285831051763?text=Halo%2C%20saya%20ingin%20membeli%20aplikasi%20Tookee" target="_blank" rel="noopener">
+        Hubungi via WhatsApp
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="appRoot" style="display:none;">
+
+
+  <header>
+    <div class="crop">Nota Timbangan &amp; Pembelian</div>
+    <input id="tokeName" value="Tookee" maxlength="40">
+    <div class="hint">Ketuk nama di atas untuk mengganti nama toke</div>
+  </header>
+
+  <div class="tabbar">
+    <button type="button" class="tab-btn active" id="tabBtnTransaksi">🧾 Transaksi</button>
+    <button type="button" class="tab-btn" id="tabBtnRiwayat">📊 Riwayat</button>
+  </div>
+
+  <div id="pageTransaksi">
+
+  <div class="card">
+    <h2>Transaksi</h2>
+    <label for="customer">Nama Pelanggan</label>
+    <input type="text" id="customer" placeholder="Nama petani / pelanggan">
+
+    <label>Timbangan (kg)</label>
+    <div class="session-hint">Timbangan maksimal ±100 kg sekali angkat — tambah timbangan untuk muatan lebih besar (maks. 100 timbangan)</div>
+    <div id="sessionList"></div>
+    <button type="button" class="btn-add-session" id="btnAddSession">+ Tambah Timbangan</button>
+
+    <div class="row2" style="margin-top:14px;">
+      <div>
+        <label>Total Berat</label>
+        <div class="readonly-box" id="totalBeratVal">0 kg</div>
+      </div>
+      <div>
+        <label for="harga">Harga / kg (Rp)</label>
+        <input type="number" id="harga" placeholder="0" inputmode="numeric" min="0" step="1">
+      </div>
+    </div>
+
+    <div class="total-box">
+      <span class="lbl">Total Bayar</span>
+      <span class="val" id="totalVal">Rp 0</span>
+    </div>
+
+    <label for="thanksText">Teks Penutup Struk</label>
+    <input type="text" id="thanksText" value="Terima kasih" maxlength="60">
+
+    <button class="btn-primary" id="btnSimpan">Simpan ke Nota</button>
+  </div>
+
+  <div class="card">
+    <h2>Pratinjau Struk</h2>
+    <div class="receipt-wrap">
+      <div class="receipt" id="receipt"></div>
+      <div class="receipt-zigzag"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-secondary" id="btnConnect">🔗 Hubungkan Printer</button>
+      <button class="btn-primary" id="btnPrint" style="margin-top:0;" disabled>🖨️ Cetak</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" id="btnImage" style="margin-top:0;">⬇️ Gambar</button>
+      <button class="btn-secondary" id="btnNotaPdf" style="margin-top:0;">📄 PDF</button>
+    </div>
+    <button class="btn-wa" id="btnNotaWA">💬 Kirim ke WhatsApp</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  </div>
+
+  <div id="pageRiwayat" style="display:none;">
+
+  <div class="subtabbar">
+    <button type="button" class="subtab-btn active" id="subTabHarian">📅 Rekap Harian</button>
+    <button type="button" class="subtab-btn" id="subTabBulanan">🗓️ Rekap Bulanan</button>
+  </div>
+
+  <div id="pageHarian">
+    <div class="card">
+      <h2>Rekap Harian</h2>
+      <input type="date" id="dailyDate">
+      <div class="month-summary" id="dailySummary"></div>
+      <div id="dailyList"><div class="empty">Memuat riwayat...</div></div>
+      <div class="btn-row">
+        <button class="btn-secondary" id="btnDailyPrint">🖨️ Cetak Rekap</button>
+        <button class="btn-secondary" id="btnDailyPdf">📄 Simpan PDF</button>
+      </div>
+      <button class="btn-wa" id="btnDailyWA">💬 Kirim ke WhatsApp</button>
+      <button class="btn-danger" id="btnDeleteDaily">🗑️ Hapus Semua Riwayat Hari Ini</button>
+    </div>
+  </div>
+
+  <div id="pageBulanan" style="display:none;">
+    <div class="card">
+      <h2>Rekap Bulanan</h2>
+      <select id="monthSelect"></select>
+      <div class="month-summary" id="monthSummary"></div>
+      <div id="histList"><div class="empty">Memuat riwayat...</div></div>
+      <div class="btn-row">
+        <button class="btn-secondary" id="btnRecapPrint">🖨️ Cetak Rekap</button>
+        <button class="btn-secondary" id="btnRecapPdf">📄 Simpan PDF</button>
+      </div>
+      <button class="btn-wa" id="btnRecapWA">💬 Kirim ke WhatsApp</button>
+      <button class="btn-danger" id="btnDeleteMonth">🗑️ Hapus Semua Riwayat Bulan Ini</button>
+    </div>
+  </div>
+
+  </div>
+
+  <footer>
+    Cetak Bluetooth memakai Web Bluetooth — hanya jalan di <b>Chrome/Edge Android</b> atau Chrome desktop dengan printer thermal ber-BLE.<br>
+    Di iPhone (Safari), tombol cetak Bluetooth tidak tersedia — gunakan "Simpan sebagai Gambar" lalu cetak dari aplikasi bawaan printer Anda.<br>
+    Riwayat transaksi tersimpan otomatis per bulan dan tetap ada saat aplikasi dibuka lagi, khusus di perangkat/akun ini.<br>
+    PDF rekap harian &amp; bulanan otomatis diberi nama sesuai tanggal/bulan dan disimpan ke folder <b>Download/Tookee</b> di HP (khusus Chrome Android; di iPhone/Safari file tersimpan ke folder Download/Files biasa tanpa sub-folder).<br><br>
+    Dikembangkan oleh <b>Lagiono Edi Syahputra</b>
+  </footer>
+
+</div>
+
+
+<canvas id="hiddenCanvas" style="display:none;"></canvas>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* ---------- Layar kunci password ---------- */
+/* Daftar password per pembeli. Tambah/hapus baris di bawah ini sesuai kebutuhan.
+   Format: 'PASSWORD': 'Nama Pembeli' */
+const LICENSES = {
+  'Tookee2026': 'Admin (Lagiono Edi Syahputra)',
+
+  // === Kode untuk pembeli — 1 kode = 1 HP ===
+  // Cara pakai: hapus tanda "//" di depan baris, lalu ganti "(belum terpakai)"
+  // dengan nama pembeli + no HP-nya. Simpan file, upload ulang ke hosting.
+  // 'YP342Z6': '(belum terpakai)',
+  // 'YP4UZW7': '(belum terpakai)',
+  // 'YP5R83Z': '(belum terpakai)',
+  // 'YP726WE': '(belum terpakai)',
+  // 'YP7FWUP': '(belum terpakai)',
+  // 'YP93TWG': '(belum terpakai)',
+  // 'YPDFKNT': '(belum terpakai)',
+  // 'YPDKWJU': '(belum terpakai)',
+  // 'YPE7WY2': '(belum terpakai)',
+  // 'YPJUHK4': '(belum terpakai)',
+  // 'YPK3XAW': '(belum terpakai)',
+  // 'YPKHB7H': '(belum terpakai)',
+  // 'YPKKVNJ': '(belum terpakai)',
+  // 'YPKZKJT': '(belum terpakai)',
+  // 'YPMAGTE': '(belum terpakai)',
+  // 'YPMYRDY': '(belum terpakai)',
+  // 'YPP8A7V': '(belum terpakai)',
+  // 'YPPQ94P': '(belum terpakai)',
+  // 'YPQ2X2N': '(belum terpakai)',
+  // 'YPQEMUX': '(belum terpakai)',
+  // 'YPT5UNU': '(belum terpakai)',
+  // 'YPU5UGR': '(belum terpakai)',
+  // 'YPVAP4Y': '(belum terpakai)',
+  // 'YPXND78': '(belum terpakai)',
+  // 'YPXU72P': '(belum terpakai)',
+  // 'YPYKBJK': '(belum terpakai)',
+  // 'YPYQDNA': '(belum terpakai)',
+  // 'YPZU7Z4': '(belum terpakai)',
+  // 'YPZWEQB': '(belum terpakai)',
+  // 'YPZWYXX': '(belum terpakai)',
+};
+const UNLOCK_KEY = 'tookee_unlocked';
+const UNLOCK_NAME_KEY = 'tookee_unlocked_name';
+
+function tryUnlock(){
+  const input = $('lockInput').value;
+  if(Object.prototype.hasOwnProperty.call(LICENSES, input)){
+    try{
+      localStorage.setItem(UNLOCK_KEY, 'yes');
+      localStorage.setItem(UNLOCK_NAME_KEY, LICENSES[input]);
+    }catch(e){}
+    $('lockScreen').style.display = 'none';
+    $('appRoot').style.display = '';
+  }else{
+    $('lockError').textContent = 'Password salah, coba lagi.';
+    $('lockInput').value = '';
+    $('lockInput').focus();
+  }
+}
+
+(function initLock(){
+  let alreadyUnlocked = false;
+  try{ alreadyUnlocked = localStorage.getItem(UNLOCK_KEY) === 'yes'; }catch(e){}
+  if(alreadyUnlocked){
+    $('lockScreen').style.display = 'none';
+    $('appRoot').style.display = '';
+  }else{
+    $('lockBtn').addEventListener('click', tryUnlock);
+    $('lockInput').addEventListener('keydown', (e) => {
+      if(e.key === 'Enter') tryUnlock();
+    });
+    $('lockInput').focus();
+  }
+})();
+
+const tokeNameEl = $('tokeName');
+const customerEl = $('customer');
+const hargaEl = $('harga');
+const thanksTextEl = $('thanksText');
+const totalValEl = $('totalVal');
+const totalBeratValEl = $('totalBeratVal');
+const sessionListEl = $('sessionList');
+const receiptEl = $('receipt');
+const statusEl = $('status');
+const histListEl = $('histList');
+const monthSelectEl = $('monthSelect');
+const monthSummaryEl = $('monthSummary');
+const dailyDateEl = $('dailyDate');
+const dailySummaryEl = $('dailySummary');
+const dailyListEl = $('dailyList');
+
+let bleCharacteristic = null;
+let bleDevice = null;
+let currentMonthRecords = [];
+let currentDailyRecords = [];
+let currentDailyMonthKey = '';
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const MONTH_NAMES_FULL = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const HARI_NAMES = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const PDF_FOLDER = 'Tookee'; // sub-folder tempat semua PDF rekap disimpan di HP
+const DEV_NAME = 'Lagiono Edi Syahputra';
+const MAX_SESSIONS = 100;
+
+let sessions = [{ id: 1, value: '' }];
+let nextSessionId = 2;
+
+function renderSessions(){
+  sessionListEl.innerHTML = sessions.map((s, i) => `
+    <div class="session-row">
+      <span class="session-label">Timbangan ${i+1}</span>
+      <input type="number" placeholder="0" inputmode="decimal" min="0" step="0.1"
+             data-id="${s.id}" class="session-input" value="${s.value}">
+      <button type="button" class="session-remove" data-id="${s.id}" ${sessions.length<=1 ? 'style="visibility:hidden;"' : ''}>✕</button>
+    </div>
+  `).join('');
+
+  sessionListEl.querySelectorAll('.session-input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const id = parseInt(inp.dataset.id, 10);
+      const s = sessions.find(x => x.id === id);
+      if(s) s.value = inp.value;
+      renderPreview();
+    });
+  });
+  sessionListEl.querySelectorAll('.session-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.id, 10);
+      removeSession(id);
+    });
+  });
+
+  $('btnAddSession').disabled = sessions.length >= MAX_SESSIONS;
+}
+
+function addSession(){
+  if(sessions.length >= MAX_SESSIONS){
+    showStatus('Maksimal 100 timbangan untuk satu transaksi.', 'err');
+    return;
+  }
+  sessions.push({ id: nextSessionId++, value: '' });
+  renderSessions();
+}
+
+function removeSession(id){
+  if(sessions.length <= 1){
+    sessions[0].value = '';
+    renderSessions();
+    renderPreview();
+    return;
+  }
+  sessions = sessions.filter(s => s.id !== id);
+  renderSessions();
+  renderPreview();
+}
+
+function totalBeratSessions(){
+  return sessions.reduce((sum, s) => sum + (parseFloat(s.value) || 0), 0);
+}
+
+function sessionBreakdown(){
+  return sessions
+    .map((s, i) => ({ label: 'Timbangan ' + (i+1), value: parseFloat(s.value) || 0 }))
+    .filter(s => s.value > 0);
+}
+
+$('btnAddSession').addEventListener('click', addSession);
+
+function rupiah(n){
+  n = Math.round(n || 0);
+  return 'Rp ' + n.toLocaleString('id-ID');
+}
+
+function currentTotal(){
+  const b = totalBeratSessions();
+  const h = parseFloat(hargaEl.value) || 0;
+  return b * h;
+}
+
+function nowStr(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+
+function buildReceiptLines(data){
+  const width = 32; // char width for 58mm printers; 80mm printers can fit more but this stays safe
+  const line = (l,r) => {
+    l = l||''; r = r||'';
+    const space = Math.max(1, width - l.length - r.length);
+    return l + ' '.repeat(space) + r;
+  };
+  const center = t => {
+    t = t||'';
+    const pad = Math.max(0, Math.floor((width - t.length)/2));
+    return ' '.repeat(pad) + t;
+  };
+  const dash = '-'.repeat(width);
+
+  const lines = [];
+  lines.push({t:center(data.toke), bold:true});
+  lines.push({t:center('Nota Timbangan'), bold:false});
+  lines.push({t:dash});
+  lines.push({t:line('Tanggal', data.tanggal)});
+  lines.push({t:line('Pelanggan', data.customer || '-')});
+  lines.push({t:dash});
+  if(data.sessions && data.sessions.length > 0){
+    data.sessions.forEach(s => {
+      lines.push({t:line(s.label, s.value.toLocaleString('id-ID') + ' kg')});
+    });
+    lines.push({t:dash});
+  }
+  lines.push({t:line('Total Berat', data.berat.toLocaleString('id-ID') + ' kg'), bold:true});
+  lines.push({t:line('Harga/kg', rupiah(data.harga))});
+  lines.push({t:dash});
+  lines.push({t:line('TOTAL', rupiah(data.total)), bold:true, big:true});
+  lines.push({t:dash});
+  lines.push({t:center(data.thanks || 'Terima kasih')});
+  return lines;
+}
+
+function renderPreview(){
+  const berat = totalBeratSessions();
+  const data = {
+    toke: tokeNameEl.value || 'Tookee',
+    tanggal: nowStr(),
+    customer: customerEl.value,
+    berat: berat,
+    harga: parseFloat(hargaEl.value) || 0,
+    sessions: sessionBreakdown(),
+    thanks: thanksTextEl.value,
+    total: currentTotal()
+  };
+  totalBeratValEl.textContent = berat.toLocaleString('id-ID') + ' kg';
+  totalValEl.textContent = rupiah(data.total);
+
+  const lines = buildReceiptLines(data);
+  receiptEl.innerHTML = lines.map(l => {
+    let cls = 'rline';
+    if(l.bold) cls += ' rbold';
+    if(l.big) cls += ' rbig';
+    if(l.t.startsWith('-')) return '<div class="rdash"></div>';
+    return `<div class="${cls}">${escapeHtml(l.t)}</div>`;
+  }).join('');
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+[customerEl, hargaEl, tokeNameEl, thanksTextEl].forEach(el=>{
+  el.addEventListener('input', renderPreview);
+});
+
+function showStatus(msg, type){
+  statusEl.textContent = msg;
+  statusEl.className = 'status show' + (type ? ' '+type : '');
+}
+
+function gatherNotaData(){
+  return {
+    toke: tokeNameEl.value || 'Toke',
+    tanggal: nowStr(),
+    customer: customerEl.value,
+    berat: totalBeratSessions(),
+    harga: parseFloat(hargaEl.value) || 0,
+    sessions: sessionBreakdown(),
+    thanks: thanksTextEl.value,
+    total: currentTotal()
+  };
+}
+
+/* ---------- Ekspor PDF & kirim ke WhatsApp ---------- */
+const PDF_FOREST = [31,61,43];
+const PDF_GOLD = [224,165,38];
+const PDF_PAPER = [250,246,236];
+const PDF_INK = [42,38,32];
+const PDF_LINE = [228,220,200];
+
+function pdfHeaderBand(doc, storeName, title, subtitle){
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFillColor.apply(doc, PDF_FOREST);
+  doc.rect(0, 0, pageWidth, subtitle ? 78 : 64, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(18);
+  doc.text(storeName, 36, 32);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(10.5);
+  doc.text(title, 36, 50);
+  if(subtitle){
+    doc.setFontSize(9.5);
+    doc.text(subtitle, 36, 65);
+  }
+  doc.setTextColor.apply(doc, PDF_INK);
+}
+
+function pdfFooterNote(doc){
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  doc.setFontSize(8);
+  doc.setTextColor(150,150,150);
+  doc.text('Dicetak dari aplikasi Toke pada ' + nowStr(), 36, pageHeight - 20);
+  doc.setTextColor.apply(doc, PDF_INK);
+}
+
+/* Rekap harian & bulanan: tabel gaya spreadsheet */
+function buildRecapTablePdfBlob({ storeName, title, subtitle, head, rows, foot, summary, columnStyles }){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'a4' });
+  pdfHeaderBand(doc, storeName, title, subtitle);
+
+  doc.autoTable({
+    startY: 96,
+    head: [head],
+    body: rows,
+    foot: foot ? [foot] : undefined,
+    theme: 'grid',
+    styles: { font:'helvetica', fontSize:9.5, cellPadding:6, textColor:PDF_INK, lineColor:PDF_LINE, lineWidth:0.6 },
+    headStyles: { fillColor:PDF_FOREST, textColor:255, fontStyle:'bold', halign:'center' },
+    footStyles: { fillColor:PDF_GOLD, textColor:PDF_FOREST, fontStyle:'bold', fontSize:10 },
+    alternateRowStyles: { fillColor:PDF_PAPER },
+    columnStyles: columnStyles || {
+      0: { cellWidth:32, halign:'center' },
+      3: { halign:'right' },
+      4: { halign:'right' },
+      5: { halign:'right' }
+    },
+    margin: { left:36, right:36 }
+  });
+
+  let y = doc.lastAutoTable.finalY + 22;
+  if(summary && summary.length){
+    summary.forEach(s => {
+      doc.setFont('helvetica', s.bold ? 'bold' : 'normal');
+      doc.setFontSize(s.bold ? 11 : 9.5);
+      doc.text(s.label, 36, y);
+      doc.text(s.value, doc.internal.pageSize.getWidth() - 36, y, { align:'right' });
+      y += s.bold ? 18 : 15;
+    });
+  }
+  pdfFooterNote(doc);
+  return doc.output('blob');
+}
+
+function buildDailyRecapPdf(dateStr, dayRecords){
+  const head = ['No','Waktu','Pelanggan','Berat (kg)','Harga/kg','Total (Rp)'];
+  const rows = dayRecords.map((e, i) => {
+    const d = new Date(e.rec.timestamp);
+    const jam = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    return [String(i+1), jam, e.rec.customer || '-', e.rec.berat.toLocaleString('id-ID'), rupiah(e.rec.harga), rupiah(e.rec.total)];
+  });
+  const totalKg = dayRecords.reduce((s,e) => s + (e.rec.berat||0), 0);
+  const totalRp = dayRecords.reduce((s,e) => s + (e.rec.total||0), 0);
+  const foot = ['', '', 'TOTAL', totalKg.toLocaleString('id-ID') + ' kg', '', rupiah(totalRp)];
+  return buildRecapTablePdfBlob({
+    storeName: tokeNameEl.value || 'Toke',
+    title: 'Rekap Harian',
+    subtitle: dailyDateLabel(dateStr),
+    head, rows, foot,
+    summary: [
+      { label:'Jumlah Transaksi', value:String(dayRecords.length) },
+      { label:'TOTAL', value: rupiah(totalRp), bold:true }
+    ]
+  });
+}
+
+function buildMonthlyRecapPdf(monthKey, records){
+  const groups = groupRecordsByDay(records);
+  const head = ['No','Tanggal','Transaksi','Berat (kg)','Total (Rp)'];
+  const rows = groups.map((g, i) => [
+    String(i+1),
+    shortDateLabel(g.dateKey),
+    String(g.count),
+    g.totalKg.toLocaleString('id-ID'),
+    rupiah(g.totalRp)
+  ]);
+  const totalKg = records.reduce((s,r) => s + (r.berat||0), 0);
+  const totalRp = records.reduce((s,r) => s + (r.total||0), 0);
+  const foot = ['', '', String(records.length), totalKg.toLocaleString('id-ID') + ' kg', rupiah(totalRp)];
+  return buildRecapTablePdfBlob({
+    storeName: tokeNameEl.value || 'Toke',
+    title: 'Rekap Bulanan',
+    subtitle: monthLabel(monthKey) + ' — kumpulan rekap harian',
+    head, rows, foot,
+    columnStyles: {
+      0: { cellWidth:32, halign:'center' },
+      2: { halign:'center' },
+      3: { halign:'right' },
+      4: { halign:'right' }
+    },
+    summary: [
+      { label:'Jumlah Hari Transaksi', value:String(groups.length) },
+      { label:'Jumlah Transaksi', value:String(records.length) },
+      { label:'TOTAL', value: rupiah(totalRp), bold:true }
+    ]
+  });
+}
+
+/* Nota tunggal: tabel timbangan + ringkasan gaya invoice */
+function buildNotaPdf(data){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'a5' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  pdfHeaderBand(doc, data.toke, 'Nota Timbangan', null);
+
+  doc.setFontSize(10);
+  doc.text('Tanggal', 36, 92);
+  doc.text(':  ' + data.tanggal, 110, 92);
+  doc.text('Pelanggan', 36, 108);
+  doc.text(':  ' + (data.customer || '-'), 110, 108);
+
+  const sess = (data.sessions && data.sessions.length) ? data.sessions : [{ label:'Timbangan 1', value:data.berat }];
+  const rows = sess.map((s,i) => [String(i+1), s.label, s.value.toLocaleString('id-ID') + ' kg']);
+
+  doc.autoTable({
+    startY: 122,
+    head: [['No','Timbangan','Berat']],
+    body: rows,
+    theme: 'grid',
+    styles: { font:'helvetica', fontSize:9.5, cellPadding:6, textColor:PDF_INK, lineColor:PDF_LINE, lineWidth:0.6 },
+    headStyles: { fillColor:PDF_FOREST, textColor:255, fontStyle:'bold', halign:'center' },
+    alternateRowStyles: { fillColor:PDF_PAPER },
+    columnStyles: { 0:{ cellWidth:26, halign:'center' }, 2:{ halign:'right' } },
+    margin: { left:36, right:36 }
+  });
+
+  let y = doc.lastAutoTable.finalY + 22;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.text('Total Berat', 36, y);
+  doc.text(data.berat.toLocaleString('id-ID') + ' kg', pageWidth - 36, y, { align:'right' });
+  y += 16;
+  doc.text('Harga / kg', 36, y);
+  doc.text(rupiah(data.harga), pageWidth - 36, y, { align:'right' });
+  y += 12;
+  doc.setDrawColor.apply(doc, PDF_GOLD);
+  doc.line(36, y, pageWidth - 36, y);
+  y += 20;
+
+  doc.setFillColor.apply(doc, PDF_GOLD);
+  doc.rect(30, y - 15, pageWidth - 60, 28, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.setTextColor.apply(doc, PDF_FOREST);
+  doc.text('TOTAL BAYAR', 36, y + 4);
+  doc.text(rupiah(data.total), pageWidth - 36, y + 4, { align:'right' });
+  doc.setTextColor.apply(doc, PDF_INK);
+  y += 44;
+
+  doc.setFont('helvetica','italic'); doc.setFontSize(10);
+  doc.text(data.thanks || 'Terima kasih', pageWidth / 2, y, { align:'center' });
+
+  pdfFooterNote(doc);
+  return doc.output('blob');
+}
+
+function linesToPdfBlob(lines){
+  const { jsPDF } = window.jspdf;
+  const height = 60 + lines.length * 15;
+  const doc = new jsPDF({ unit:'pt', format:[227, height] }); // lebar ~80mm
+  let y = 22;
+  lines.forEach(l => {
+    doc.setFont('courier', l.bold ? 'bold' : 'normal');
+    doc.setFontSize(l.big ? 11.5 : 9);
+    doc.text(l.t, 10, y);
+    y += l.big ? 18 : 14;
+  });
+  return doc.output('blob');
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* Nama file tampilan (dengan folder, misal "Tookee/Rekap-Harian-...pdf") dipakai
+   untuk unduhan biasa (link <a download>) karena Chrome Android akan otomatis
+   membuat folder tersebut di dalam folder Download HP.
+   Untuk fitur "Bagikan" (Web Share), nama file TIDAK BOLEH mengandung folder,
+   jadi diambil nama filenya saja tanpa folder. */
+function basenameOnly(path){
+  return path.includes('/') ? path.split('/').pop() : path;
+}
+
+async function shareOrDownloadPdf(blob, filename, waText){
+  const plainName = basenameOnly(filename);
+  try{
+    const file = new File([blob], plainName, { type:'application/pdf' });
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      await navigator.share({ files:[file], title:plainName, text:waText });
+      showStatus('File PDF dibagikan. Pilih WhatsApp pada menu berbagi.', 'ok');
+      return;
+    }
+  }catch(e){
+    if(e.name === 'AbortError') return; // dibatalkan pengguna
+  }
+  // Fallback: unduh PDF (dengan folder) lalu buka WhatsApp dengan teks ringkasan
+  downloadBlob(blob, filename);
+  const waUrl = 'https://wa.me/?text=' + encodeURIComponent(waText);
+  window.open(waUrl, '_blank');
+  showStatus('PDF diunduh ke folder "' + PDF_FOLDER + '" di Download HP. Lampirkan file PDF tersebut secara manual di WhatsApp yang baru terbuka.', 'ok');
+}
+
+/* Nama file rekap harian, contoh: Tookee/Rekap-Harian-Kamis-09-07-2026.pdf */
+function dailyPdfFileName(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  const pad = n => String(n).padStart(2,'0');
+  const label = HARI_NAMES[d.getDay()] + '-' + pad(d.getDate()) + '-' + pad(d.getMonth()+1) + '-' + d.getFullYear();
+  return PDF_FOLDER + '/Rekap-Harian-' + label + '.pdf';
+}
+
+/* Nama file rekap bulanan, contoh: Tookee/Rekap-Bulanan-Juli-2026.pdf */
+function monthlyPdfFileName(monthKey){
+  const [y,m] = monthKey.replace('trans:','').split('-');
+  const label = MONTH_NAMES_FULL[parseInt(m,10)-1] + '-' + y;
+  return PDF_FOLDER + '/Rekap-Bulanan-' + label + '.pdf';
+}
+
+/* ---------- Riwayat bulanan (tersimpan permanen) ---------- */
+/* Memakai window.storage kalau tersedia (di dalam claude.ai),
+   otherwise otomatis jatuh ke localStorage browser (saat file dibuka mandiri / di-hosting) */
+const hasClaudeStorage = (typeof window.storage !== 'undefined' && window.storage !== null);
+
+async function storageGet(key){
+  if(hasClaudeStorage){
+    return await window.storage.get(key, false);
+  }
+  const v = localStorage.getItem(key);
+  if(v === null) throw new Error('key not found');
+  return { key, value: v };
+}
+async function storageSet(key, value){
+  if(hasClaudeStorage){
+    return await window.storage.set(key, value, false);
+  }
+  localStorage.setItem(key, value);
+  return { key, value };
+}
+async function storageList(prefix){
+  if(hasClaudeStorage){
+    return await window.storage.list(prefix, false);
+  }
+  const keys = [];
+  for(let i=0; i<localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && k.startsWith(prefix)) keys.push(k);
+  }
+  return { keys };
+}
+async function storageDelete(key){
+  if(hasClaudeStorage){
+    return await window.storage.delete(key, false);
+  }
+  localStorage.removeItem(key);
+  return { key, deleted: true };
+}
+
+function monthKeyOf(date){
+  const pad = n => String(n).padStart(2,'0');
+  return 'trans:' + date.getFullYear() + '-' + pad(date.getMonth()+1);
+}
+function monthLabel(key){
+  const [y,m] = key.replace('trans:','').split('-');
+  return MONTH_NAMES[parseInt(m,10)-1] + ' ' + y;
+}
+function currentMonthKey(){
+  return monthKeyOf(new Date());
+}
+
+/* Mengelompokkan transaksi 1 bulan menjadi kumpulan rekap harian (per tanggal).
+   Ini yang dipakai rekap bulanan: total per hari, lalu dijumlah jadi total bulan. */
+function groupRecordsByDay(records){
+  const map = new Map();
+  records.forEach((r, idx) => {
+    const d = new Date(r.timestamp);
+    const pad = n => String(n).padStart(2,'0');
+    const dateKey = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+    if(!map.has(dateKey)) map.set(dateKey, { dateKey, items: [] });
+    map.get(dateKey).items.push({ rec: r, idx });
+  });
+  const groups = Array.from(map.values());
+  groups.forEach(g => {
+    g.count = g.items.length;
+    g.totalKg = g.items.reduce((s, it) => s + (it.rec.berat || 0), 0);
+    g.totalRp = g.items.reduce((s, it) => s + (it.rec.total || 0), 0);
+  });
+  groups.sort((a,b) => a.dateKey < b.dateKey ? 1 : -1); // tanggal terbaru dulu
+  return groups;
+}
+function shortDateLabel(dateKey){
+  const [y,m,dd] = dateKey.split('-');
+  return dd + '/' + m;
+}
+
+async function getMonthRecords(key){
+  try{
+    const res = await storageGet(key);
+    if(res && res.value) return JSON.parse(res.value);
+    return [];
+  }catch(e){
+    return []; // key belum ada
+  }
+}
+
+async function setMonthRecords(key, records){
+  try{
+    await storageSet(key, JSON.stringify(records));
+  }catch(e){
+    showStatus('Gagal menyimpan riwayat: ' + e.message, 'err');
+  }
+}
+
+async function populateMonthSelect(){
+  let keys = [];
+  try{
+    const res = await storageList('trans:');
+    if(res && res.keys) keys = res.keys;
+  }catch(e){ /* belum ada riwayat sama sekali */ }
+
+  const nowKey = currentMonthKey();
+  if(!keys.includes(nowKey)) keys.push(nowKey);
+  keys.sort().reverse();
+
+  monthSelectEl.innerHTML = keys.map(k =>
+    `<option value="${k}">${monthLabel(k)}</option>`
+  ).join('');
+  monthSelectEl.value = nowKey;
+}
+
+async function loadAndRenderMonth(key){
+  histListEl.innerHTML = '<div class="empty">Memuat riwayat...</div>';
+  currentMonthRecords = await getMonthRecords(key);
+  renderHistory();
+}
+
+function renderHistory(){
+  const list = currentMonthRecords;
+  if(list.length === 0){
+    histListEl.innerHTML = '<div class="empty">Belum ada transaksi bulan ini</div>';
+    monthSummaryEl.innerHTML = '';
+    return;
+  }
+  const totalKg = list.reduce((s,h)=> s + (h.berat||0), 0);
+  const totalRp = list.reduce((s,h)=> s + (h.total||0), 0);
+  monthSummaryEl.innerHTML = `
+    <div class="stat"><span class="n">${list.length}</span><span class="l">Transaksi</span></div>
+    <div class="stat"><span class="n">${totalKg.toLocaleString('id-ID')}</span><span class="l">Kg</span></div>
+    <div class="stat"><span class="n">${rupiah(totalRp)}</span><span class="l">Total</span></div>
+  `;
+  const groups = groupRecordsByDay(list);
+  histListEl.innerHTML = groups.map(g => `
+      <div class="hist-item">
+        <div>
+          <div class="who">${escapeHtml(dailyDateLabel(g.dateKey))}</div>
+          <div class="meta">${g.count} transaksi · ${g.totalKg.toLocaleString('id-ID')} kg · ${rupiah(g.totalRp)}</div>
+        </div>
+        <div class="hist-actions">
+          <button class="btn-ghost" onclick="viewDayFromMonth('${g.dateKey}')">Lihat Harian</button>
+          <button class="hist-del" onclick="deleteDayFromMonth('${g.dateKey}')" title="Hapus semua transaksi tanggal ini">🗑️</button>
+        </div>
+      </div>`
+  ).join('');
+}
+
+function viewDayFromMonth(dateKey){
+  dailyDateEl.value = dateKey;
+  loadAndRenderDaily(dateKey);
+  showRiwayatSubPage('harian');
+}
+
+async function deleteDayFromMonth(dateKey){
+  const label = dailyDateLabel(dateKey);
+  const group = groupRecordsByDay(currentMonthRecords).find(g => g.dateKey === dateKey);
+  const count = group ? group.count : 0;
+  if(!confirm('Hapus SEMUA riwayat tanggal ' + label + ' (' + count + ' transaksi)? Tindakan ini tidak bisa dibatalkan.')) return;
+  const key = monthSelectEl.value;
+  try{
+    const pad = n => String(n).padStart(2,'0');
+    const remaining = currentMonthRecords.filter(r => {
+      const d = new Date(r.timestamp);
+      const rKey = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+      return rKey !== dateKey;
+    });
+    await setMonthRecords(key, remaining);
+    currentMonthRecords = remaining;
+    renderHistory();
+    if(currentDailyMonthKey === key && dailyDateEl.value === dateKey){
+      await loadAndRenderDaily(dailyDateEl.value);
+    }
+    showStatus('Riwayat tanggal ' + label + ' sudah dihapus.', 'ok');
+  }catch(e){
+    showStatus('Gagal menghapus riwayat: ' + e.message, 'err');
+  }
+}
+
+async function deleteMonthHistory(){
+  const key = monthSelectEl.value;
+  if(currentMonthRecords.length === 0){
+    showStatus('Tidak ada riwayat untuk dihapus di bulan ini.', 'err');
+    return;
+  }
+  const label = monthLabel(key);
+  if(!confirm('Hapus SEMUA riwayat bulan ' + label + ' (' + currentMonthRecords.length + ' transaksi)? Tindakan ini tidak bisa dibatalkan.')) return;
+  try{
+    await storageDelete(key);
+    await populateMonthSelect();
+    await loadAndRenderMonth(monthSelectEl.value);
+    showStatus('Riwayat bulan ' + label + ' sudah dihapus.', 'ok');
+  }catch(e){
+    showStatus('Gagal menghapus riwayat: ' + e.message, 'err');
+  }
+}
+
+$('btnDeleteMonth').addEventListener('click', deleteMonthHistory);
+
+/* ---------- Rekap Harian ---------- */
+function todayDateStr(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+}
+function dailyDateLabel(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  const pad = n => String(n).padStart(2,'0');
+  return pad(d.getDate()) + ' ' + MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+async function loadAndRenderDaily(dateStr){
+  dailyListEl.innerHTML = '<div class="empty">Memuat riwayat...</div>';
+  const d = new Date(dateStr + 'T00:00:00');
+  const key = monthKeyOf(d);
+  const monthRecords = await getMonthRecords(key);
+  const dayRecords = [];
+  monthRecords.forEach((r, idx) => {
+    const rd = new Date(r.timestamp);
+    if(rd.getFullYear() === d.getFullYear() && rd.getMonth() === d.getMonth() && rd.getDate() === d.getDate()){
+      dayRecords.push({ rec:r, monthIdx:idx });
+    }
+  });
+  currentDailyMonthKey = key;
+  currentDailyRecords = dayRecords;
+  renderDaily();
+}
+
+function renderDaily(){
+  const list = currentDailyRecords;
+  if(list.length === 0){
+    dailyListEl.innerHTML = '<div class="empty">Belum ada transaksi tanggal ini</div>';
+    dailySummaryEl.innerHTML = '';
+    return;
+  }
+  const totalKg = list.reduce((s,e) => s + (e.rec.berat||0), 0);
+  const totalRp = list.reduce((s,e) => s + (e.rec.total||0), 0);
+  dailySummaryEl.innerHTML = `
+    <div class="stat"><span class="n">${list.length}</span><span class="l">Transaksi</span></div>
+    <div class="stat"><span class="n">${totalKg.toLocaleString('id-ID')}</span><span class="l">Kg</span></div>
+    <div class="stat"><span class="n">${rupiah(totalRp)}</span><span class="l">Total</span></div>
+  `;
+  dailyListEl.innerHTML = list.slice().reverse().map((e, idxRev) => {
+    const idx = list.length - 1 - idxRev;
+    const h = e.rec;
+    return `
+      <div class="hist-item">
+        <div>
+          <div class="who">${escapeHtml(h.customer || 'Tanpa nama')}</div>
+          <div class="meta">${h.waktu} · ${h.berat} kg × ${rupiah(h.harga)} = ${rupiah(h.total)}</div>
+        </div>
+        <div class="hist-actions">
+          <button class="btn-ghost" onclick="reprintDaily(${idx})">Cetak Ulang</button>
+          <button class="hist-del" onclick="deleteDailyTransaction(${idx})" title="Hapus transaksi ini">🗑️</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function deleteDailyTransaction(idx){
+  const entry = currentDailyRecords[idx];
+  if(!entry) return;
+  const label = entry.rec.customer || 'transaksi ini';
+  if(!confirm('Hapus transaksi "' + label + '"? Tindakan ini tidak bisa dibatalkan.')) return;
+  try{
+    const key = currentDailyMonthKey;
+    const monthRecords = await getMonthRecords(key);
+    monthRecords.splice(entry.monthIdx, 1);
+    await setMonthRecords(key, monthRecords);
+    await loadAndRenderDaily(dailyDateEl.value);
+    if(monthSelectEl.value === key){ await loadAndRenderMonth(key); }
+    showStatus('Transaksi dihapus.', 'ok');
+  }catch(e){
+    showStatus('Gagal menghapus: ' + e.message, 'err');
+  }
+}
+
+async function deleteDailyAll(){
+  if(currentDailyRecords.length === 0){
+    showStatus('Tidak ada riwayat untuk dihapus tanggal ini.', 'err');
+    return;
+  }
+  const label = dailyDateLabel(dailyDateEl.value);
+  if(!confirm('Hapus SEMUA riwayat tanggal ' + label + ' (' + currentDailyRecords.length + ' transaksi)? Tindakan ini tidak bisa dibatalkan.')) return;
+  try{
+    const key = currentDailyMonthKey;
+    const monthRecords = await getMonthRecords(key);
+    const removeIdx = new Set(currentDailyRecords.map(e => e.monthIdx));
+    const remaining = monthRecords.filter((r, idx) => !removeIdx.has(idx));
+    await setMonthRecords(key, remaining);
+    await loadAndRenderDaily(dailyDateEl.value);
+    if(monthSelectEl.value === key){ await loadAndRenderMonth(key); }
+    showStatus('Riwayat tanggal ' + label + ' sudah dihapus.', 'ok');
+  }catch(e){
+    showStatus('Gagal menghapus riwayat: ' + e.message, 'err');
+  }
+}
+
+$('btnDeleteDaily').addEventListener('click', deleteDailyAll);
+dailyDateEl.addEventListener('change', () => loadAndRenderDaily(dailyDateEl.value));
+
+function buildDailyRecapLines(dateStr, dayRecords){
+  const width = 32;
+  const line = (l,r) => {
+    l = l||''; r = r||'';
+    if(l.length + r.length + 1 > width) l = l.slice(0, Math.max(0, width - r.length - 1));
+    const space = Math.max(1, width - l.length - r.length);
+    return l + ' '.repeat(space) + r;
+  };
+  const center = t => {
+    t = t||'';
+    const pad = Math.max(0, Math.floor((width - t.length)/2));
+    return ' '.repeat(pad) + t;
+  };
+  const dash = '-'.repeat(width);
+
+  const lines = [];
+  lines.push({t:center(tokeNameEl.value || 'Toke'), bold:true});
+  lines.push({t:center('Rekap Harian')});
+  lines.push({t:center(dailyDateLabel(dateStr))});
+  lines.push({t:dash});
+
+  let totalKg = 0, totalRp = 0;
+  dayRecords.forEach(({rec}) => {
+    const d = new Date(rec.timestamp);
+    const jam = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    lines.push({t:line(jam + ' ' + (rec.customer || '-'), rupiah(rec.total))});
+    lines.push({t:'  ' + rec.berat.toLocaleString('id-ID') + ' kg x ' + rupiah(rec.harga)});
+    totalKg += (rec.berat || 0);
+    totalRp += (rec.total || 0);
+  });
+
+  lines.push({t:dash});
+  lines.push({t:line('Jml Transaksi', String(dayRecords.length)), bold:true});
+  lines.push({t:line('Total Berat', totalKg.toLocaleString('id-ID') + ' kg'), bold:true});
+  lines.push({t:line('TOTAL', rupiah(totalRp)), bold:true, big:true});
+  lines.push({t:dash});
+  return lines;
+}
+
+$('btnDailyPrint').addEventListener('click', async () => {
+  if(!bleCharacteristic){
+    showStatus('Hubungkan printer terlebih dahulu.', 'err');
+    return;
+  }
+  if(currentDailyRecords.length === 0){
+    showStatus('Tidak ada transaksi tanggal ini untuk dicetak.', 'err');
+    return;
+  }
+  try{
+    showStatus('Menyiapkan rekap harian...', null);
+    const lines = buildDailyRecapLines(dailyDateEl.value, currentDailyRecords);
+    const bytes = escposFromLines(lines);
+    await bleWriteChunked(bleCharacteristic, bytes);
+    showStatus('Rekap harian terkirim ke printer.', 'ok');
+  }catch(e){
+    showStatus('Gagal mencetak rekap: ' + e.message, 'err');
+  }
+});
+
+$('btnDailyPdf').addEventListener('click', () => {
+  if(currentDailyRecords.length === 0){
+    showStatus('Tidak ada transaksi tanggal ini untuk disimpan.', 'err');
+    return;
+  }
+  const blob = buildDailyRecapPdf(dailyDateEl.value, currentDailyRecords);
+  const filename = dailyPdfFileName(dailyDateEl.value);
+  downloadBlob(blob, filename);
+  showStatus('PDF rekap harian tersimpan di folder "' + PDF_FOLDER + '" (Download HP).', 'ok');
+});
+
+$('btnDailyWA').addEventListener('click', async () => {
+  if(currentDailyRecords.length === 0){
+    showStatus('Tidak ada transaksi tanggal ini untuk dikirim.', 'err');
+    return;
+  }
+  const blob = buildDailyRecapPdf(dailyDateEl.value, currentDailyRecords);
+  const filename = dailyPdfFileName(dailyDateEl.value);
+  const totalRp = currentDailyRecords.reduce((s,e) => s + (e.rec.total||0), 0);
+  const waText = 'Rekap Harian ' + dailyDateLabel(dailyDateEl.value) + '\n' +
+    currentDailyRecords.length + ' transaksi, Total: ' + rupiah(totalRp);
+  await shareOrDownloadPdf(blob, filename, waText);
+});
+
+function reprintRecord(h){
+  customerEl.value = h.customer;
+  hargaEl.value = h.harga;
+  if(h.sessions && h.sessions.length > 0){
+    sessions = h.sessions.map((s, i) => ({ id: i+1, value: String(s.value) }));
+    nextSessionId = sessions.length + 1;
+  }else{
+    sessions = [{ id: 1, value: String(h.berat || '') }];
+    nextSessionId = 2;
+  }
+  renderSessions();
+  renderPreview();
+  showPage('transaksi');
+  showStatus('Data dimuat ke pratinjau — tekan Cetak untuk mencetak ulang.', 'ok');
+}
+function reprint(idx){
+  reprintRecord(currentMonthRecords[idx]);
+}
+function reprintDaily(idx){
+  reprintRecord(currentDailyRecords[idx].rec);
+}
+
+monthSelectEl.addEventListener('change', () => {
+  loadAndRenderMonth(monthSelectEl.value);
+});
+
+$('btnSimpan').addEventListener('click', async () => {
+  const b = totalBeratSessions();
+  const h = parseFloat(hargaEl.value) || 0;
+  if(b <= 0 || h <= 0){
+    showStatus('Isi berat (minimal satu sesi) dan harga terlebih dahulu.', 'err');
+    return;
+  }
+  const now = new Date();
+  const rec = {
+    customer: customerEl.value,
+    berat: b,
+    harga: h,
+    total: b*h,
+    sessions: sessionBreakdown(),
+    waktu: nowStr(),
+    timestamp: now.toISOString()
+  };
+  const key = monthKeyOf(now);
+  try{
+    const existing = await getMonthRecords(key);
+    existing.push(rec);
+    await setMonthRecords(key, existing);
+    if(monthSelectEl.value === key){
+      currentMonthRecords = existing;
+      renderHistory();
+    }
+    await populateMonthSelect();
+    monthSelectEl.value = key;
+    showStatus('Transaksi disimpan ke riwayat bulan ' + monthLabel(key) + '.', 'ok');
+  }catch(e){
+    showStatus('Gagal menyimpan riwayat: ' + e.message, 'err');
+  }
+});
+
+/* ---------- Bluetooth ESC/POS printing ---------- */
+const KNOWN_SERVICES = [
+  '000018f0-0000-1000-8000-00805f9b34fb',
+  '0000ff00-0000-1000-8000-00805f9b34fb',
+  '0000ffe0-0000-1000-8000-00805f9b34fb',
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+  '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
+];
+
+async function findWritableCharacteristic(server){
+  for(const svcUuid of KNOWN_SERVICES){
+    try{
+      const service = await server.getPrimaryService(svcUuid);
+      const chars = await service.getCharacteristics();
+      for(const c of chars){
+        if(c.properties.write || c.properties.writeWithoutResponse){
+          return c;
+        }
+      }
+    }catch(e){ /* service not present on this device, try next */ }
+  }
+  return null;
+}
+
+$('btnConnect').addEventListener('click', async () => {
+  if(!navigator.bluetooth){
+    showStatus('Web Bluetooth tidak didukung di browser ini. Gunakan Chrome di Android, atau simpan struk sebagai gambar.', 'err');
+    return;
+  }
+  try{
+    showStatus('Membuka daftar perangkat Bluetooth...', null);
+    bleDevice = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: KNOWN_SERVICES
+    });
+    showStatus('Menghubungkan ke ' + (bleDevice.name || 'printer') + '...', null);
+    const server = await bleDevice.gatt.connect();
+    const char = await findWritableCharacteristic(server);
+    if(!char){
+      showStatus('Terhubung, tapi tidak menemukan jalur cetak yang cocok pada printer ini.', 'err');
+      return;
+    }
+    bleCharacteristic = char;
+    $('btnPrint').disabled = false;
+    showStatus('Printer terhubung: ' + (bleDevice.name || 'perangkat') + '. Siap mencetak.', 'ok');
+  }catch(e){
+    showStatus('Gagal terhubung: ' + e.message, 'err');
+  }
+});
+
+function buildEscPosBytes(data){
+  const enc = new TextEncoder();
+  const bytes = [];
+  const push = arr => bytes.push(...arr);
+  const pushText = t => push(Array.from(enc.encode(t)));
+
+  push([0x1B,0x40]); // init
+  push([0x1B,0x61,0x01]); // center
+  push([0x1B,0x45,0x01]); // bold on
+  pushText(data.toke + '\n');
+  push([0x1B,0x45,0x00]); // bold off
+  pushText('Nota Timbangan\n');
+  push([0x1B,0x61,0x00]); // left align
+  pushText('--------------------------------\n');
+
+  const width = 32;
+  const line = (l,r) => {
+    l = l||''; r = r||'';
+    const space = Math.max(1, width - l.length - r.length);
+    return l + ' '.repeat(space) + r + '\n';
+  };
+  pushText(line('Tanggal', data.tanggal));
+  pushText(line('Pelanggan', data.customer || '-'));
+  pushText('--------------------------------\n');
+  if(data.sessions && data.sessions.length > 0){
+    data.sessions.forEach(s => {
+      pushText(line(s.label, s.value.toLocaleString('id-ID') + ' kg'));
+    });
+    pushText('--------------------------------\n');
+  }
+  push([0x1B,0x45,0x01]); // bold
+  pushText(line('Total Berat', data.berat.toLocaleString('id-ID') + ' kg'));
+  push([0x1B,0x45,0x00]); // bold off
+  pushText(line('Harga/kg', rupiah(data.harga)));
+  pushText('--------------------------------\n');
+
+  push([0x1B,0x45,0x01]); // bold
+  push([0x1D,0x21,0x11]); // double size
+  pushText(line('TOTAL', rupiah(data.total)));
+  push([0x1D,0x21,0x00]); // normal size
+  push([0x1B,0x45,0x00]); // bold off
+
+  pushText('--------------------------------\n');
+  push([0x1B,0x61,0x01]); // center
+  pushText((data.thanks || 'Terima kasih') + '\n\n\n');
+  push([0x1D,0x56,0x42,0x00]); // partial cut (ignored if unsupported)
+
+  return new Uint8Array(bytes);
+}
+
+async function bleWriteChunked(characteristic, data){
+  const CHUNK = 20;
+  for(let i=0; i<data.length; i+=CHUNK){
+    const slice = data.slice(i, i+CHUNK);
+    if(characteristic.properties.writeWithoutResponse){
+      await characteristic.writeValueWithoutResponse(slice);
+    }else{
+      await characteristic.writeValue(slice);
+    }
+    await new Promise(r => setTimeout(r, 20));
+  }
+}
+
+$('btnPrint').addEventListener('click', async () => {
+  if(!bleCharacteristic){
+    showStatus('Hubungkan printer terlebih dahulu.', 'err');
+    return;
+  }
+  const data = {
+    toke: tokeNameEl.value || 'Tookee',
+    tanggal: nowStr(),
+    customer: customerEl.value,
+    berat: totalBeratSessions(),
+    harga: parseFloat(hargaEl.value) || 0,
+    sessions: sessionBreakdown(),
+    thanks: thanksTextEl.value,
+    total: currentTotal()
+  };
+  if(data.berat <= 0 || data.harga <= 0){
+    showStatus('Isi berat (minimal satu sesi) dan harga terlebih dahulu.', 'err');
+    return;
+  }
+  try{
+    showStatus('Mengirim ke printer...', null);
+    const bytes = buildEscPosBytes(data);
+    await bleWriteChunked(bleCharacteristic, bytes);
+    showStatus('Struk terkirim ke printer.', 'ok');
+  }catch(e){
+    showStatus('Gagal mencetak: ' + e.message, 'err');
+  }
+});
+
+/* ---------- Fallback: save receipt as image ---------- */
+$('btnImage').addEventListener('click', () => {
+  const data = {
+    toke: tokeNameEl.value || 'Tookee',
+    tanggal: nowStr(),
+    customer: customerEl.value,
+    berat: totalBeratSessions(),
+    harga: parseFloat(hargaEl.value) || 0,
+    sessions: sessionBreakdown(),
+    thanks: thanksTextEl.value,
+    total: currentTotal()
+  };
+  if(data.berat <= 0 || data.harga <= 0){
+    showStatus('Isi berat (minimal satu sesi) dan harga terlebih dahulu.', 'err');
+    return;
+  }
+  const canvas = $('hiddenCanvas');
+  const w = 400, lineH = 26;
+  const lines = buildReceiptLines(data);
+  const h = 40 + lines.length * lineH + 30;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fffefb';
+  ctx.fillRect(0,0,w,h);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = '16px ui-monospace, Menlo, Consolas, monospace';
+  ctx.textBaseline = 'top';
+  let y = 24;
+  lines.forEach(l => {
+    ctx.font = (l.bold ? 'bold ' : '') + (l.big ? '18px' : '16px') + ' ui-monospace, Menlo, Consolas, monospace';
+    ctx.fillText(l.t, 16, y);
+    y += lineH;
+  });
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'struk-' + (data.customer || 'sawit').replace(/\s+/g,'_') + '.png';
+    a.click();
+    URL.revokeObjectURL(url);
+    showStatus('Gambar struk tersimpan. Buka dari galeri untuk dicetak lewat aplikasi printer Anda.', 'ok');
+  });
+});
+
+$('btnNotaPdf').addEventListener('click', () => {
+  const data = gatherNotaData();
+  if(data.berat <= 0 || data.harga <= 0){
+    showStatus('Isi berat (minimal satu sesi) dan harga terlebih dahulu.', 'err');
+    return;
+  }
+  const blob = buildNotaPdf(data);
+  downloadBlob(blob, 'nota-' + (data.customer || 'sawit').replace(/\s+/g,'_') + '.pdf');
+  showStatus('PDF nota tersimpan.', 'ok');
+});
+
+$('btnNotaWA').addEventListener('click', async () => {
+  const data = gatherNotaData();
+  if(data.berat <= 0 || data.harga <= 0){
+    showStatus('Isi berat (minimal satu sesi) dan harga terlebih dahulu.', 'err');
+    return;
+  }
+  const blob = buildNotaPdf(data);
+  const waText = 'Nota Timbangan - ' + (data.customer || '-') + '\n' +
+    data.berat.toLocaleString('id-ID') + ' kg, Total: ' + rupiah(data.total);
+  await shareOrDownloadPdf(blob, 'nota-' + (data.customer || 'sawit').replace(/\s+/g,'_') + '.pdf', waText);
+});
+
+/* ---------- Rekap Bulanan (cetak & simpan gambar) ---------- */
+function buildRecapLines(monthKey, records){
+  const width = 32;
+  const line = (l,r) => {
+    l = l||''; r = r||'';
+    if(l.length + r.length + 1 > width) l = l.slice(0, Math.max(0, width - r.length - 1));
+    const space = Math.max(1, width - l.length - r.length);
+    return l + ' '.repeat(space) + r;
+  };
+  const center = t => {
+    t = t||'';
+    const pad = Math.max(0, Math.floor((width - t.length)/2));
+    return ' '.repeat(pad) + t;
+  };
+  const dash = '-'.repeat(width);
+
+  const lines = [];
+  lines.push({t:center(tokeNameEl.value || 'Tookee'), bold:true});
+  lines.push({t:center('Rekap Bulanan')});
+  lines.push({t:center(monthLabel(monthKey))});
+  lines.push({t:center('(kumpulan rekap harian)')});
+  lines.push({t:dash});
+
+  const groups = groupRecordsByDay(records).slice().reverse(); // urut tanggal lama ke baru
+  groups.forEach(g => {
+    lines.push({t:line(shortDateLabel(g.dateKey), rupiah(g.totalRp)), bold:true});
+    lines.push({t:'  ' + g.count + ' transaksi, ' + g.totalKg.toLocaleString('id-ID') + ' kg'});
+  });
+
+  const totalKg = records.reduce((s,r) => s + (r.berat||0), 0);
+  const totalRp = records.reduce((s,r) => s + (r.total||0), 0);
+
+  lines.push({t:dash});
+  lines.push({t:line('Jml Hari', String(groups.length)), bold:true});
+  lines.push({t:line('Jml Transaksi', String(records.length)), bold:true});
+  lines.push({t:line('Total Berat', totalKg.toLocaleString('id-ID') + ' kg'), bold:true});
+  lines.push({t:line('TOTAL', rupiah(totalRp)), bold:true, big:true});
+  lines.push({t:dash});
+  return lines;
+}
+
+function escposFromLines(lines){
+  const enc = new TextEncoder();
+  const bytes = [];
+  const push = arr => bytes.push(...arr);
+  const pushText = t => push(Array.from(enc.encode(t)));
+
+  push([0x1B,0x40]); // init
+  lines.forEach(l => {
+    if(l.bold) push([0x1B,0x45,0x01]);
+    if(l.big) push([0x1D,0x21,0x11]);
+    pushText(l.t + '\n');
+    if(l.big) push([0x1D,0x21,0x00]);
+    if(l.bold) push([0x1B,0x45,0x00]);
+  });
+  pushText('\n\n');
+  push([0x1D,0x56,0x42,0x00]); // partial cut
+  return new Uint8Array(bytes);
+}
+
+$('btnRecapPrint').addEventListener('click', async () => {
+  if(!bleCharacteristic){
+    showStatus('Hubungkan printer terlebih dahulu.', 'err');
+    return;
+  }
+  if(currentMonthRecords.length === 0){
+    showStatus('Tidak ada transaksi di bulan ini untuk dicetak.', 'err');
+    return;
+  }
+  try{
+    showStatus('Menyiapkan rekap bulanan...', null);
+    const lines = buildRecapLines(monthSelectEl.value, currentMonthRecords);
+    const bytes = escposFromLines(lines);
+    await bleWriteChunked(bleCharacteristic, bytes);
+    showStatus('Rekap bulanan terkirim ke printer.', 'ok');
+  }catch(e){
+    showStatus('Gagal mencetak rekap: ' + e.message, 'err');
+  }
+});
+
+$('btnRecapPdf').addEventListener('click', () => {
+  if(currentMonthRecords.length === 0){
+    showStatus('Tidak ada transaksi di bulan ini untuk disimpan.', 'err');
+    return;
+  }
+  const blob = buildMonthlyRecapPdf(monthSelectEl.value, currentMonthRecords);
+  const filename = monthlyPdfFileName(monthSelectEl.value);
+  downloadBlob(blob, filename);
+  showStatus('PDF rekap bulanan tersimpan di folder "' + PDF_FOLDER + '" (Download HP).', 'ok');
+});
+
+$('btnRecapWA').addEventListener('click', async () => {
+  if(currentMonthRecords.length === 0){
+    showStatus('Tidak ada transaksi di bulan ini untuk dikirim.', 'err');
+    return;
+  }
+  const blob = buildMonthlyRecapPdf(monthSelectEl.value, currentMonthRecords);
+  const filename = monthlyPdfFileName(monthSelectEl.value);
+  const totalRp = currentMonthRecords.reduce((s,h) => s + (h.total||0), 0);
+  const waText = 'Rekap Bulanan ' + monthLabel(monthSelectEl.value) + '\n' +
+    currentMonthRecords.length + ' transaksi, Total: ' + rupiah(totalRp);
+  await shareOrDownloadPdf(blob, filename, waText);
+});
+
+renderSessions();
+renderPreview();
+
+/* ---------- Navigasi 2 halaman: Transaksi & Riwayat ---------- */
+function showPage(page){
+  const pageTransaksi = $('pageTransaksi');
+  const pageRiwayat = $('pageRiwayat');
+  const tabTransaksi = $('tabBtnTransaksi');
+  const tabRiwayat = $('tabBtnRiwayat');
+  if(page === 'riwayat'){
+    pageTransaksi.style.display = 'none';
+    pageRiwayat.style.display = '';
+    tabTransaksi.classList.remove('active');
+    tabRiwayat.classList.add('active');
+  }else{
+    pageTransaksi.style.display = '';
+    pageRiwayat.style.display = 'none';
+    tabRiwayat.classList.remove('active');
+    tabTransaksi.classList.add('active');
+  }
+}
+$('tabBtnTransaksi').addEventListener('click', () => showPage('transaksi'));
+$('tabBtnRiwayat').addEventListener('click', () => showPage('riwayat'));
+
+function showRiwayatSubPage(sub){
+  const pageHarian = $('pageHarian');
+  const pageBulanan = $('pageBulanan');
+  const tabHarian = $('subTabHarian');
+  const tabBulanan = $('subTabBulanan');
+  if(sub === 'bulanan'){
+    pageHarian.style.display = 'none';
+    pageBulanan.style.display = '';
+    tabHarian.classList.remove('active');
+    tabBulanan.classList.add('active');
+  }else{
+    pageBulanan.style.display = 'none';
+    pageHarian.style.display = '';
+    tabBulanan.classList.remove('active');
+    tabHarian.classList.add('active');
+  }
+}
+$('subTabHarian').addEventListener('click', () => showRiwayatSubPage('harian'));
+$('subTabBulanan').addEventListener('click', () => showRiwayatSubPage('bulanan'));
+
+(async () => {
+  dailyDateEl.value = todayDateStr();
+  await loadAndRenderDaily(dailyDateEl.value);
+  await populateMonthSelect();
+  await loadAndRenderMonth(monthSelectEl.value);
+})();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
