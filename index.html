@@ -243,6 +243,16 @@
     display:block; text-decoration:none; background:#25D366; color:#fff;
     font-weight:700; font-size:14px; padding:12px 16px; border-radius:9px;
   }
+  #trialBanner{
+    display:none; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--gold); color:var(--forest); font-size:12px; font-weight:700;
+    padding:10px 14px; border-radius:10px; margin-bottom:14px;
+  }
+  #trialBanner span{ line-height:1.35; }
+  #trialUnlockBtn{
+    flex-shrink:0; background:var(--forest); color:#fff; border:none;
+    border-radius:7px; padding:8px 10px; font-size:11.5px; font-weight:700; cursor:pointer;
+  }
 </style>
 </head>
 <body>
@@ -266,6 +276,10 @@
 
 <div class="app" id="appRoot" style="display:none;">
 
+  <div id="trialBanner">
+    <span id="trialBannerText"></span>
+    <button type="button" id="trialUnlockBtn">Masukkan Password</button>
+  </div>
 
   <header>
     <div class="crop">Nota Timbangan &amp; Pembelian</div>
@@ -431,6 +445,25 @@ const LICENSES = {
 const UNLOCK_KEY = 'tookee_unlocked';
 const UNLOCK_NAME_KEY = 'tookee_unlocked_name';
 
+/* ---------- Trial gratis 1 hari sebelum wajib password ---------- */
+const TRIAL_KEY = 'tookee_trial_start';
+const TRIAL_MS = 24 * 60 * 60 * 1000; // 1 hari
+
+function hideTrialBanner(){
+  const el = $('trialBanner');
+  if(el) el.style.display = 'none';
+}
+
+function showTrialBanner(remainingMs){
+  const el = $('trialBanner');
+  const textEl = $('trialBannerText');
+  if(!el || !textEl) return;
+  const hrs = Math.max(0, Math.floor(remainingMs / 3600000));
+  const mins = Math.max(0, Math.floor((remainingMs % 3600000) / 60000));
+  textEl.textContent = 'Masa coba gratis 1 hari — sisa ' + hrs + ' jam ' + mins + ' menit.';
+  el.style.display = 'flex';
+}
+
 function tryUnlock(){
   const input = $('lockInput').value;
   if(Object.prototype.hasOwnProperty.call(LICENSES, input)){
@@ -440,11 +473,27 @@ function tryUnlock(){
     }catch(e){}
     $('lockScreen').style.display = 'none';
     $('appRoot').style.display = '';
+    hideTrialBanner();
   }else{
     $('lockError').textContent = 'Password salah, coba lagi.';
     $('lockInput').value = '';
     $('lockInput').focus();
   }
+}
+
+$('lockBtn').addEventListener('click', tryUnlock);
+$('lockInput').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') tryUnlock();
+});
+const trialUnlockBtnEl = $('trialUnlockBtn');
+if(trialUnlockBtnEl){
+  trialUnlockBtnEl.addEventListener('click', () => {
+    $('appRoot').style.display = 'none';
+    $('lockScreen').style.display = '';
+    $('lockInput').value = '';
+    $('lockError').textContent = '';
+    $('lockInput').focus();
+  });
 }
 
 (function initLock(){
@@ -453,11 +502,27 @@ function tryUnlock(){
   if(alreadyUnlocked){
     $('lockScreen').style.display = 'none';
     $('appRoot').style.display = '';
+    return;
+  }
+
+  // Cek / mulai masa trial gratis 1 hari (tersimpan per HP/browser)
+  let trialStart = null;
+  try{ trialStart = localStorage.getItem(TRIAL_KEY); }catch(e){}
+  if(!trialStart){
+    trialStart = String(Date.now());
+    try{ localStorage.setItem(TRIAL_KEY, trialStart); }catch(e){}
+  }
+  const remaining = TRIAL_MS - (Date.now() - parseInt(trialStart, 10));
+
+  if(remaining > 0){
+    // Masih dalam masa trial: langsung masuk ke aplikasi, tampilkan banner sisa waktu
+    $('lockScreen').style.display = 'none';
+    $('appRoot').style.display = '';
+    showTrialBanner(remaining);
   }else{
-    $('lockBtn').addEventListener('click', tryUnlock);
-    $('lockInput').addEventListener('keydown', (e) => {
-      if(e.key === 'Enter') tryUnlock();
-    });
+    // Trial sudah habis: wajib masukkan password
+    $('lockScreen').style.display = '';
+    $('appRoot').style.display = 'none';
     $('lockInput').focus();
   }
 })();
@@ -1123,6 +1188,7 @@ async function loadAndRenderDaily(dateStr){
   const monthRecords = await getMonthRecords(key);
   const dayRecords = [];
   monthRecords.forEach((r, idx) => {
+    if(r.hiddenDaily) return; // sudah dihapus dari tampilan harian, tapi tetap ada di rekap bulanan
     const rd = new Date(r.timestamp);
     if(rd.getFullYear() === d.getFullYear() && rd.getMonth() === d.getMonth() && rd.getDate() === d.getDate()){
       dayRecords.push({ rec:r, monthIdx:idx });
@@ -1168,15 +1234,17 @@ async function deleteDailyTransaction(idx){
   const entry = currentDailyRecords[idx];
   if(!entry) return;
   const label = entry.rec.customer || 'transaksi ini';
-  if(!confirm('Hapus transaksi "' + label + '"? Tindakan ini tidak bisa dibatalkan.')) return;
+  if(!confirm('Hapus transaksi "' + label + '" dari riwayat harian? Data tetap tersimpan di rekap bulanan.')) return;
   try{
     const key = currentDailyMonthKey;
     const monthRecords = await getMonthRecords(key);
-    monthRecords.splice(entry.monthIdx, 1);
+    // Tidak dihapus permanen, hanya disembunyikan dari tampilan harian.
+    // Datanya tetap ada dan tetap terhitung di rekap bulanan.
+    if(monthRecords[entry.monthIdx]) monthRecords[entry.monthIdx].hiddenDaily = true;
     await setMonthRecords(key, monthRecords);
     await loadAndRenderDaily(dailyDateEl.value);
     if(monthSelectEl.value === key){ await loadAndRenderMonth(key); }
-    showStatus('Transaksi dihapus.', 'ok');
+    showStatus('Transaksi dihapus dari riwayat harian (tetap tersimpan di rekap bulanan).', 'ok');
   }catch(e){
     showStatus('Gagal menghapus: ' + e.message, 'err');
   }
@@ -1188,16 +1256,18 @@ async function deleteDailyAll(){
     return;
   }
   const label = dailyDateLabel(dailyDateEl.value);
-  if(!confirm('Hapus SEMUA riwayat tanggal ' + label + ' (' + currentDailyRecords.length + ' transaksi)? Tindakan ini tidak bisa dibatalkan.')) return;
+  if(!confirm('Hapus SEMUA riwayat tanggal ' + label + ' (' + currentDailyRecords.length + ' transaksi) dari tampilan harian? Data tetap tersimpan di rekap bulanan.')) return;
   try{
     const key = currentDailyMonthKey;
     const monthRecords = await getMonthRecords(key);
+    // Tidak dihapus permanen, hanya disembunyikan dari tampilan harian.
+    // Datanya tetap ada dan tetap terhitung di rekap bulanan.
     const removeIdx = new Set(currentDailyRecords.map(e => e.monthIdx));
-    const remaining = monthRecords.filter((r, idx) => !removeIdx.has(idx));
-    await setMonthRecords(key, remaining);
+    monthRecords.forEach((r, idx) => { if(removeIdx.has(idx)) r.hiddenDaily = true; });
+    await setMonthRecords(key, monthRecords);
     await loadAndRenderDaily(dailyDateEl.value);
     if(monthSelectEl.value === key){ await loadAndRenderMonth(key); }
-    showStatus('Riwayat tanggal ' + label + ' sudah dihapus.', 'ok');
+    showStatus('Riwayat tanggal ' + label + ' dihapus dari tampilan harian (tetap tersimpan di rekap bulanan).', 'ok');
   }catch(e){
     showStatus('Gagal menghapus riwayat: ' + e.message, 'err');
   }
